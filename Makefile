@@ -1,5 +1,5 @@
-#OCB_FLAGS   = -use-ocamlfind -use-menhir -I src -cflags -annot,-w,+A-41-44-45
-OCB_FLAGS   = -use-ocamlfind -use-menhir -I src -cflags -annot,-easy-type-errors # uses menhir
+OCB_FLAGS   = -use-ocamlfind -use-menhir -I src -cflags -annot,-w,+A-41-44-45
+#OCB_FLAGS   = -use-ocamlfind -use-menhir -I src -cflags -annot,-easy-type-errors # uses menhir
 PACKAGE = regexParser.tgz
 OCB = 		ocamlbuild $(OCB_FLAGS)
 

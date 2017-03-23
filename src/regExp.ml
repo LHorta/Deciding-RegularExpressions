@@ -122,7 +122,7 @@ let rec getSymbols exp =
 let rec piFun exp =
   match exp with
     Empty | Epsilon -> Set.empty
-  | Char c -> Set.singleton(Epsilon)
+  | Char _ -> Set.singleton(Epsilon)
   | Star s -> (piFun s) <**> (Set.singleton(Star s))
   | Choice(a,b) -> (piFun a) ||. (piFun b)
   | Concat(a,b) -> (piFun a) <**> Set.singleton(b) ||. (piFun b)

@@ -64,11 +64,11 @@ module NFA = struct
     accept: regexp_t Set.t;  }
   let size a = G.nb_vertex a.delta
   let accept a = fold_vertex (fun x acc -> if emptyWord x = Epsilon then Set.add x acc else acc) a.delta Set.empty
-  let vars a = fold_edges_e Set.add a.delta Set.empty
+  let vars a = fold_edges_e (fun x acc -> Set.add (G.E.label x) acc) a.delta Set.empty(* fold_edges_e Set.add a.delta Set.empty *)
   let delta a v x =
     try fold_succ_e (fun y acc -> if G.E.label y = v then Set.add (G.E.src y) acc else acc ) a.delta x Set.empty
     with Invalid_argument _ -> Set.empty
-    (* let delta a v x = fold_edges_e (fun y acc -> if (G.E.label y) = v && (G.E.src y) = x then Set.add (G.E.dst y) acc else acc) a.delta Set.empty *)
+(* let delta a v x = fold_edges_e (fun y acc -> if (G.E.label y) = v && (G.E.src y) = x then Set.add (G.E.dst y) acc else acc) a.delta Set.empty *)
   let delta_set a v x = Set.fold (Set.union % delta a v) x Set.empty
 end
 type nfa = NFA.nft
@@ -98,8 +98,8 @@ let checkPath pc v initialStates =
    G.fold_vertex (fun x acc -> if not (checkPath pc x gs) then G.remove_vertex g x else g) g G.empty *)
 
 let liveSet g (gs: G.V.t Set.t) =
-  let pc = PathChecker.create g in
-  G.fold_vertex (fun x acc -> if not (checkPath pc x gs) then G.remove_vertex acc x else acc) g g
+  (* let pc = PathChecker.create g in *)
+  G.fold_vertex (fun x acc ->let pc = PathChecker.create acc in if not (checkPath pc x gs) then G.remove_vertex acc x else acc) g g
 
 let nfa_normalised_union_set (g,s1,s2) =
   let g1 = liveSet g (Set.singleton s1 ||. Set.singleton s2) in g1, from_graph g1

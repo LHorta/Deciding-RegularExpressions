@@ -99,7 +99,8 @@ end = struct
     let vars = vars t in
     let push_span x y =
       incr tic;
-      Set.fold (fun v todo -> R.Q.push todo (delta_set t (G.E.label v) x, delta_set t (G.E.label v) y)) vars
+      (* Set.fold (fun v todo -> R.Q.push todo (delta_set t (G.E.label v) x, delta_set t (G.E.label v) y)) vars *)
+      Set.fold (fun v todo -> R.Q.push todo (delta_set t v x, delta_set t v y)) vars
     in
     let unify = R.unify() in
     let rec loop todo =
@@ -231,7 +232,7 @@ module TR = ER(struct
   let rec xpass skipped t z = match t with
     | L x -> skipped, Set.union x z
     | N(x,tx,fx) ->
-      if  Set.subset x z then 
+      if  Set.subset x z then
 	let skipped,z = xpass skipped tx z in
 	xpass skipped fx z
       else
