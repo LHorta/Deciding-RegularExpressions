@@ -64,7 +64,8 @@ module NFA = struct
     accept: regexp_t Set.t;  }
   let size a = G.nb_vertex a.delta
   let accept a = fold_vertex (fun x acc -> if emptyWord x = Epsilon then Set.add x acc else acc) a.delta Set.empty
-  let vars a = fold_edges_e (fun x acc -> Set.add (G.E.label x) acc) a.delta Set.empty(* fold_edges_e Set.add a.delta Set.empty *)
+  let vars a = let r = fold_edges_e (fun x acc -> Set.add (G.E.label x) acc) a.delta Set.empty in Set.print ~first:"[" ~sep:"| " ~last:"]" print_any stdout r; r
+    (* fold_edges_e Set.add a.delta Set.empty *)
   let delta a v x =
     try fold_succ_e (fun y acc -> if G.E.label y = v then Set.add (G.E.src y) acc else acc ) a.delta x Set.empty
     with Invalid_argument _ -> Set.empty
@@ -81,14 +82,14 @@ let from_graph (g: G.t) =
   {size = size; delta = g; accept = accept}
 
 open PathChecker
-let live g (gs:G.V.t) =
+(* let live g (gs:G.V.t) =
   let pc = PathChecker.create g in
   G.fold_vertex (fun x acc -> if not (check_path pc x gs) then G.remove_vertex g x else g) g G.empty
 
 (* normalised union: the resulting nfa only has live states, and no spurious letters *)
 let nfa_normalised_union (g,s1,s2) =
   let g1 = live g s1 in
-  let g2 = live g1 s2 in g2,from_graph g2
+  let g2 = live g1 s2 in g2,from_graph g2 *)
 
 let checkPath pc v initialStates =
   Set.fold (fun x acc -> acc || (check_path pc x v) ) initialStates false

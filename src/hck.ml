@@ -53,31 +53,6 @@ module BFS = struct
   let fold f (h,k) a =  fold f h (fold f k a)
 end
 
-(* LIFO queues give depth-first traversal *)
-(* module DFS = struct
-  type 'a t = 'a list
-  let empty = []
-  let push r x = x :: r
-  let pop r = match r with
-    | [] -> None
-    | x::q -> Some (x,q)
-  let filter = List.filter
-  let fold = fold
-  let fold_vars vars f =
-    let rec aux i x = if i = -1 then x else aux (i-1) (f i x) in
-    aux (vars-1)
-end
-
-(* Random queues for random traversal *)
-module RFS = struct
-  include DFS
-  let rec get acc = function
-    | _,[] -> None
-    | 0,x::q -> Some (x,List.rev_append acc q)
-    | n,x::q -> get (x::acc) (n-1,q)
-  let pop r = get [] (Random.int (List.length r),r)
-end *)
-
 module type CHECKER = sig
   (* how to enqueue elements of the todo list *)
   module Q: QUEUE
@@ -114,7 +89,6 @@ end = struct
     let r = try loop (R.Q.push R.Q.empty (x,y)) with CE -> false
     in r, !tic
 end
-
 
 module type RULES = sig
   (* representing a set of rewriting rules to perform efficient congruence tests.
@@ -179,45 +153,6 @@ module ER(R: RULES): ERULES = struct
       | None -> None
       | Some(rules,y') as r -> if pnorm' rules todo y' then None else r
 end
-
-
-module SR = ER(struct
-  (* simple candidates as lists of pairs, rewritten from left to right *)
-  type t = (set*set) list
-  let empty = []
-  let pass rules x = List.fold_left (fun (rules,z) (x,y as xy) ->
-      if Set.subset x z then rules, Set.union y z else
-      xy::rules,z
-  ) ([],x) rules
-  let add x y rules = (x,y) :: rules
-end)
-
-module LR = ER(struct
-  (* candidates as lists of pairs, rewritten from left to right ;
-     the candidate is simplified a little bit when adding new pairs *)
-  type t = (set*set) list
-  let empty = []
-  let pass rules x = List.fold_left (fun (rules,z) (x,y as xy) ->
-      if Set.subset x z then rules, Set.union y z else
-      xy::rules,z
-  ) ([],x) rules
-  let add x x' =
-    let upd z' = if Set.subset x z' then Set.union x' z' else z' in
-    let rec xadd' = function
-      | [] -> []
-      | (z,z')::q -> (z,upd z')::xadd' q
-    in
-    let rec xadd = function
-      | [] -> [x,x']
-      | (z,z')::q -> match compare x z with
-	  | 1 -> (z,upd z')::xadd q
-	  | 0 -> (z,Set.union x' z')::xadd' q
-	  | _ -> (x,x')::xadd' q
-    in
-    xadd
-end)
-
-
 
 module TR = ER(struct
   (* candidates as binary trees, allowing to cut some branches during
