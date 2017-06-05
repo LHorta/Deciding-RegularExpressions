@@ -16,9 +16,15 @@ let process name =
   let _ = init_pos lexbuf  name  in
   try
     let rl = Parser.main Lexer.token lexbuf in
-    let g1 = List.fold_left (fun acc x -> buildAutomata x acc) G.empty rl in
-    let g,nf = nfa_normalised_union_set (g1,hd rl, hd (tl rl)) in
-    let b,i = hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf)in
+    let g1 = List.fold_left (fun acc x -> let a = buildAutomata x in Set.add a acc) Set.empty rl in
+    (* FIXME test begin *)
+    let tmpG1,tmp2 = pop g1 in
+    let tmpG2,tmp3 = pop tmp2 in
+    let g = automata_union (tmpG1,hd rl) (tmpG2, hd(tl rl)) in
+    let b = true in let i = 7 in
+    (* FIXME test end  *)
+    (* let g,nf = nfa_normalised_union_set (g1,hd rl, hd (tl rl)) in
+    let b,i = hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf)in *)
     let file = Legacy.open_out_bin "mygraph.dot" in let () = Dot.output_graph file g in
     Legacy.close_out file; print_endline(string_of_bool b ^ ": processed in " ^ string_of_int i ^ " iterations");
     List.iter (fun x -> print_endline(string_of_regexp x) ) rl;

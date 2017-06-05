@@ -44,7 +44,8 @@ let rec getEdges exp src l g =
   if Set.is_empty exp then g
   else let e,s = pop exp in getEdges s src l (G.add_edge_e g (G.E.create src l e))
 
-let buildAutomata exp g =
+let buildAutomata exp =
+  let g = G.empty in
   let sigma = (powerset (getSymbols exp)) |> Set.remove Set.empty in
   let states = Set.singleton(exp) ||. piFun exp in
   Set.fold (fun x acc ->
@@ -53,6 +54,10 @@ let buildAutomata exp g =
             states (getEdges (derivate y x) y (sprint_set ~first:"{" ~sep:", " ~last:"}" x) acc2) ) (*Create Edges*)
         states acc)
     sigma g
+
+(* let bAutomata exp g s =
+  let sigma = (powerset (getSymbols exp)) *)
+
 
 (* type for NFA *)
 module NFA = struct
@@ -64,7 +69,7 @@ module NFA = struct
     accept: regexp_t Set.t;  }
   let size a = G.nb_vertex a.delta
   let accept a = fold_vertex (fun x acc -> if emptyWord x = Epsilon then Set.add x acc else acc) a.delta Set.empty
-  let vars a = let r = fold_edges_e (fun x acc -> Set.add (G.E.label x) acc) a.delta Set.empty in Set.print ~first:"[" ~sep:"| " ~last:"]" print_any stdout r; r
+  let vars a = let r = fold_edges_e (fun x acc -> Set.add (G.E.label x) acc) a.delta Set.empty in Set.print ~first:"[" ~sep:"| " ~last:"]\n" print_any stdout r; r
     (* fold_edges_e Set.add a.delta Set.empty *)
   let delta a v x =
     try fold_succ_e (fun y acc -> if G.E.label y = v then Set.add (G.E.src y) acc else acc ) a.delta x Set.empty
@@ -104,3 +109,8 @@ let liveSet g (gs: G.V.t Set.t) =
 
 let nfa_normalised_union_set (g,s1,s2) =
   let g1 = liveSet g (Set.singleton s1 ||. Set.singleton s2) in g1, from_graph g1
+
+let automata_union (g1,s1) (g2,s2) =
+  (*let sigma1 = (powerset (getSymbols s1)) |> Set.remove Set.empty in
+  let sigma2 = (powerset (getSymbols s2)) |> Set.remove Set.empty in*)
+  fold_edges_e (fun x acc -> (G.add_edge_e acc x)) g2 (fold_edges_e (fun y acc2 -> (G.add_edge_e acc2 y)) g1 G.empty)

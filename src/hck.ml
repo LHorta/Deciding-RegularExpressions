@@ -53,6 +53,25 @@ module BFS = struct
   let fold f (h,k) a =  fold f h (fold f k a)
 end
 
+
+
+(* LIFO queues give depth-first traversal *)
+(*FIXME remove *)
+module DFS = struct
+  type 'a t = 'a list
+  let empty = []
+  let push r x = x :: r
+  let rec fold f l a =  match l with [] -> a | x::q -> fold f q (f x a)
+  let pop r = match r with
+    | [] -> None
+    | x::q -> Some (x,q)
+  let filter = List.filter
+  (* let fold = Common.fold *)
+  let fold_vars vars f =
+    let rec aux i x = if i = -1 then x else aux (i-1) (f i x) in
+    aux (vars-1)
+end
+
 module type CHECKER = sig
   (* how to enqueue elements of the todo list *)
   module Q: QUEUE
