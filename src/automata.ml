@@ -44,8 +44,8 @@ let rec getEdges exp src l g =
   if Set.is_empty exp then g
   else let e,s = pop exp in getEdges s src l (G.add_edge_e g (G.E.create src l e))
 
-let buildAutomata exp =
-  let g = G.empty in
+let buildAutomata exp g =
+  (* let g = G.empty in *)
   let sigma = (powerset (getSymbols exp)) |> Set.remove Set.empty in
   let states = Set.singleton(exp) ||. piFun exp in
   Set.fold (fun x acc ->
