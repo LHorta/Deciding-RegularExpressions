@@ -25,11 +25,9 @@ let process name =
     let b = true in let i = 7 in
     FIXME test end  *)
     let exp1,exp2 = (hd rl),(hd (tl rl)) in
-    let sameSigma = Set.equal (getSymbols exp1) (getSymbols exp2)  in
-    if not sameSigma then  print_endline(string_of_bool sameSigma ^ ": processed in 0 iterations")
-    else   
+    let sameSigma = Set.equal (getSymbols exp1) (getSymbols exp2)  in    
     let g,nf = nfa_normalised_union_set (g1,hd rl, hd (tl rl)) in
-    let b,i = hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf)in
+    let b,i = if sameSigma then hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf) else false,0 in
     let file = Legacy.open_out_bin "mygraph.dot" in let () = Dot.output_graph file g in
     Legacy.close_out file; print_endline(string_of_bool b ^ ": processed in " ^ string_of_int i ^ " iterations");
     List.iter (fun x -> print_endline(string_of_regexp x) ) rl;

@@ -69,7 +69,7 @@ module NFA = struct
     accept: regexp_t Set.t;  }
   let size a = G.nb_vertex a.delta
   let accept a = fold_vertex (fun x acc -> if emptyWord x = Epsilon then Set.add x acc else acc) a.delta Set.empty
-  let vars a = let r = fold_edges_e (fun x acc -> Set.add (G.E.label x) acc) a.delta Set.empty in Set.print ~first:"[" ~sep:"| " ~last:"]\n" print_any stdout r; r
+  let vars a = let r = fold_edges_e (fun x acc -> Set.add (G.E.label x) acc) a.delta Set.empty in (*TODO Set.print ~first:"[" ~sep:"| " ~last:"]\n" print_any stdout r;*) r
     (* fold_edges_e Set.add a.delta Set.empty *)
   let delta a v x =
     try fold_succ_e (fun y acc -> if G.E.label y = v then Set.add (G.E.src y) acc else acc ) a.delta x Set.empty
