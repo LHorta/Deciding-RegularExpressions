@@ -12,12 +12,12 @@ rule token = parse
   | space          { token lexbuf }
   | '\n'           { new_line lexbuf; EOL }
   | ['a'-'z'] as c { CHAR c }
-  | '0'            { EMPTY}
-  | '1'            { EPSILON }
-  | '*'            { STAR }
-  | '+'            { CHOICE }
-  | '.'            { CONCAT }
-  | ':'            { SYNC }
+  | '0'            { EMPTY }
+  | '1'            { EPSILON } 
+  | '*'            { STAR }   (* the kleene star operator *)
+  | '+'            { CHOICE } (* the union operator *)
+  | '.'            { CONCAT } (*the concatenation operator *)
+  | ':'            { SYNC }   (* the synchronous operator *)
   | '('            { LPAR }
   | ')'            { RPAR }
   | eof            { EOF }

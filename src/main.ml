@@ -4,6 +4,7 @@ open RegExp
 open List
 open Automata
 open Misc
+open Set.Infix  (*toy*)
 
 module HKC_BFS = Hck.Equivalence(Hck.BFS)
 
@@ -25,7 +26,15 @@ let process name =
     let b = true in let i = 7 in
     FIXME test end  *)
     let exp1,exp2 = (hd rl),(hd (tl rl)) in
-    let sameSigma = Set.equal (getSymbols exp1) (getSymbols exp2)  in    
+    let sameSigma = Set.equal (getSymbols exp1) (getSymbols exp2)  in  
+    (* begin toy 
+    let _ = 
+      Printf.printf "********************************\nexp1 --> ";
+      print_set ~first:"{" ~sep:", " ~last:"}" (Set.singleton(exp1) ||. piFun exp1);
+      Printf.printf "++++++++++++++++++++++++++++++++\nexp2 --> ";
+      print_set ~first:"{" ~sep:", " ~last:"}" (Set.singleton(exp2) ||. piFun exp2);
+      Printf.printf "********************************\n" in
+    end toy *) 
     let g,nf = nfa_normalised_union_set (g1,hd rl, hd (tl rl)) in
     let b,i = if sameSigma then hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf) else false,0 in
     let file = Legacy.open_out_bin "mygraph.dot" in let () = Dot.output_graph file g in

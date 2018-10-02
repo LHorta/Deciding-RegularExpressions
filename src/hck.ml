@@ -97,10 +97,23 @@ end = struct
       Set.fold (fun v todo -> R.Q.push todo (delta_set t v x, delta_set t v y)) vars
     in
     let unify = R.unify() in
-    let rec loop todo =
+    (* begin debugging *)
+    let print_todo s = R.Q.fold (fun v acc -> Set.singleton(v) ||. acc) s Set.empty |>
+        Set.iter (fun (x,y) -> 
+        Printf.printf "********************* TODO ***********************\n";
+        Printf.printf "A --> "; print_set ~first:"{" ~sep:", " ~last:"}" x; 
+        Printf.printf "B --> "; print_set ~first:"{" ~sep:", " ~last:"}" y;
+        Printf.printf "**********************END*************************\n")  in
+    let print_pair (a,b) = Printf.printf "Pair -> "; (print_set ~first:"" ~sep:"," ~last:" --- " a); (print_set ~first:"" ~sep:"," ~last:"" b) in 
+    (*let print_pair (a,b) = Printf.printf "Pair -> {%s, %s}\n" (string_of_regexp a) (string_of_regexp b) in 
+     end debugging *)
+    let rec loop todo =     
       match R.Q.pop todo with
       | None -> true
-      | Some ((x,y),todo) ->
+      | Some ((x,y),todo) -> 
+        (* debug 2 *)
+        let () = print_pair (x,y);print_todo todo in
+        (* end debug 2 *)
         if not (R.check t x y) then raise CE;
         if unify x y todo then loop todo
         else loop (push_span x y todo)
