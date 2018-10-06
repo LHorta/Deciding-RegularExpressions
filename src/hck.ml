@@ -98,21 +98,21 @@ end = struct
     in
     let unify = R.unify() in
     (* begin debugging *)
-    let print_todo s = R.Q.fold (fun v acc -> Set.singleton(v) ||. acc) s Set.empty |>
-        Set.iter (fun (x,y) -> 
-        Printf.printf "********************* TODO ***********************\n";
-        Printf.printf "A --> "; print_set ~first:"{" ~sep:", " ~last:"}" x; 
-        Printf.printf "B --> "; print_set ~first:"{" ~sep:", " ~last:"}" y;
-        Printf.printf "**********************END*************************\n")  in
-    let print_pair (a,b) = Printf.printf "Pair -> "; (print_set ~first:"" ~sep:"," ~last:" --- " a); (print_set ~first:"" ~sep:"," ~last:"" b) in 
+    (*let print_todo s = R.Q.fold (fun v acc -> Set.singleton(v) ||. acc) s Set.empty |>
+                       Set.iter (fun (x,y) -> 
+                           Printf.printf "********************* TODO ***********************\n";
+                           Printf.printf "A --> "; print_set ~first:"{" ~sep:", " ~last:"}" x; 
+                           Printf.printf "B --> "; print_set ~first:"{" ~sep:", " ~last:"}" y;
+                           Printf.printf "**********************END*************************\n")  in
+    let print_pair (a,b) = Printf.printf "Pair -> "; (print_set ~first:"" ~sep:"," ~last:" --- " a); (print_set ~first:"" ~sep:"," ~last:"" b) in *)
     (*let print_pair (a,b) = Printf.printf "Pair -> {%s, %s}\n" (string_of_regexp a) (string_of_regexp b) in 
-     end debugging *)
+      end debugging *)
     let rec loop todo =     
       match R.Q.pop todo with
       | None -> true
       | Some ((x,y),todo) -> 
         (* debug 2 *)
-        let () = print_pair (x,y);print_todo todo in
+        (*let () = print_pair (x,y);print_todo todo in*)
         (* end debug 2 *)
         if not (R.check t x y) then raise CE;
         if unify x y todo then loop todo
@@ -156,8 +156,8 @@ module ER(R: RULES): ERULES = struct
   let pnorm rules x y =
     let rec pnorm rules y =
       if Set.subset x y then None else
-	let rules,y' = pass rules y in
-	if Set.equal y y' then Some (rules,y') else pnorm rules y'
+        let rules,y' = pass rules y in
+        if Set.equal y y' then Some (rules,y') else pnorm rules y'
     in pnorm rules y
 
   (* get the normal form of [x] w.r.t a relation and a todo list *)
@@ -176,53 +176,53 @@ module ER(R: RULES): ERULES = struct
   let pnorm' f rules todo x y =
     let rec pnorm' rules todo y =
       if Set.subset x y then true else
-	let todo,y' = f todo y in
-	let rules,y'' = pass rules y' in
-	if Set.equal y y'' then false else
-	  pnorm' rules todo y''
+        let todo,y' = f todo y in
+        let rules,y'' = pass rules y' in
+        if Set.equal y y'' then false else
+          pnorm' rules todo y''
     in
     match pnorm rules x y with
-      | None -> None
-      | Some(rules,y') as r -> if pnorm' rules todo y' then None else r
+    | None -> None
+    | Some(rules,y') as r -> if pnorm' rules todo y' then None else r
 end
 
 module TR = ER(struct
-  (* candidates as binary trees, allowing to cut some branches during
-     rewriting *)
-  type t = L of set | N of (set*t*t)
-  let empty = L Set.empty
-  let set_compare x y =
-    if x = y then `Eq else
-    if Set.subset x y then `Lt
-    else if Set.subset y x then `Gt
+    (* candidates as binary trees, allowing to cut some branches during
+       rewriting *)
+    type t = L of set | N of (set*t*t)
+    let empty = L Set.empty
+    let set_compare x y =
+      if x = y then `Eq else
+      if Set.subset x y then `Lt
+      else if Set.subset y x then `Gt
       else `N
-  let rec xpass skipped t z = match t with
-    | L x -> skipped, Set.union x z
-    | N(x,tx,fx) ->
-      if  Set.subset x z then
-	let skipped,z = xpass skipped tx z in
-	xpass skipped fx z
-      else
-	let skipped,z = xpass skipped fx z in
-	N(x,tx,skipped),z
-  let pass = xpass empty
-  let add x x' =
-    let rec add' = function
-    (* optimisable *)
-    | L y -> L (Set.union y x')
-    | N(y,t,f) -> N(y,t,add' f)
-    in
-    let rec add = function
-    | L y as t ->
-      if  Set.subset x y then L (Set.union y x')
-      else N(x,L (Set.union y x'),t)
-    | N(y,t,f) -> match set_compare x y with
-	| `Eq -> N(y,add' t,f)
-	| `Lt -> N(x,N(y,add' t,L x'),f)
-	| `Gt -> N(y,add t,f)
-	| `N  -> N(y,t,add f)
-    in add
-end)
+    let rec xpass skipped t z = match t with
+      | L x -> skipped, Set.union x z
+      | N(x,tx,fx) ->
+        if  Set.subset x z then
+          let skipped,z = xpass skipped tx z in
+          xpass skipped fx z
+        else
+          let skipped,z = xpass skipped fx z in
+          N(x,tx,skipped),z
+    let pass = xpass empty
+    let add x x' =
+      let rec add' = function
+        (* optimisable *)
+        | L y -> L (Set.union y x')
+        | N(y,t,f) -> N(y,t,add' f)
+      in
+      let rec add = function
+        | L y as t ->
+          if  Set.subset x y then L (Set.union y x')
+          else N(x,L (Set.union y x'),t)
+        | N(y,t,f) -> match set_compare x y with
+          | `Eq -> N(y,add' t,f)
+          | `Lt -> N(x,N(y,add' t,L x'),f)
+          | `Gt -> N(y,add t,f)
+          | `N  -> N(y,t,add f)
+      in add
+  end)
 
 (* selecting the implementation of candidates *)
 module R = TR

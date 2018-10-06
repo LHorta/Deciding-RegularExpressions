@@ -1,0 +1,12 @@
+x -a-> x 
+x -b-> y
+y -a-> y
+y -b-> z
+z -a-> z 
+z -b-> z
+u -a-> u
+u -b-> u v  
+v -a-> v
+v -b-> v z 
+accept: z 
+check: x = u 

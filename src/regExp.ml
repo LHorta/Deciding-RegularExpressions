@@ -13,7 +13,7 @@ type regexp_t =
 (* Prints a string of the correspondent regular expression *)
 let rec string_of_regexp s =
   match s with
-    Empty         -> ""
+    Empty         -> "0"
   | Epsilon       -> "1"
   | Char c        ->  String.make 1 c
   | Choice (f,g)  ->  "("^(string_of_regexp f)^" + "^(string_of_regexp g)^")"

@@ -17,7 +17,7 @@ let process name =
   let lexbuf = Lexing.from_channel oc in
   let _ = init_pos lexbuf  name  in
   try
-    let rl = Parser.main Lexer.token lexbuf in
+    let rl = Parser.main Lexer.token lexbuf in    
     let g1 = List.fold_left (fun acc x -> buildAutomata x acc) G.empty rl in
     (* FIXME test begin
     let tmpG1,tmp2 = pop g1 in
@@ -39,8 +39,9 @@ let process name =
     let b,i = if sameSigma then hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf) else false,0 in
     let file = Legacy.open_out_bin "mygraph.dot" in let () = Dot.output_graph file g in
     Legacy.close_out file; print_endline(string_of_bool b ^ ": processed in " ^ string_of_int i ^ " iterations");
-    List.iter (fun x -> print_endline(string_of_regexp x) ) rl;
+    List.iter (fun x -> Printf.printf "%s\n"(string_of_regexp x) ) rl; Printf.printf "*****************************************\n"
   with
+  
   | LError msg -> print_lex_error msg
   | SError pos ->  print_syntax_error pos
 
