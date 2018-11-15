@@ -4,7 +4,48 @@ open Graph
 open RegExp
 open Set.Infix
 
-type set = regexp_t Set.t
+(* type set = regexp_t Set.t *)
+
+(* begin test *)
+
+module Mset = struct     
+  type t = regexp_t Set.t
+  open Set
+  let empty = empty
+  let union = (||.)
+  let inter = (&&.)
+  let singleton = singleton
+  let mem = mem
+  let equal = equal
+  let compare = compare
+  let fold = fold
+  let size x = fold (fun _ i -> i + 1) x 0
+  let rem = remove
+  let add = add
+  let is_empty = is_empty
+  let subseteq = (<=.)
+  (*TODO check this set_compare function *)
+  let set_compare x y =
+    if equal x y then `Eq else
+    if Set.subset x y then `Lt
+    else if Set.subset y x then `Gt
+    else `N
+  let map = map
+  let iter = iter
+  let hash = Hashtbl.hash
+  let diff = (-.)
+  let filter = filter
+  let forall = for_all
+  let exists = exists
+  module Map = Hashtbl.Make(struct 
+      type t = RegExp.regexp_t Set.t let equal = Set.equal let compare = compare let hash = hash 
+    end)
+end
+
+module Set = Mset
+
+type set = Mset.t
+(* end test *)
 
 module type QUEUE = sig
   type 'a t
@@ -98,13 +139,13 @@ end = struct
     in
     let unify = R.unify() in
     (* begin debugging *)
-    (*let print_todo s = R.Q.fold (fun v acc -> Set.singleton(v) ||. acc) s Set.empty |>
+    let print_todo s = R.Q.fold (fun v acc -> Set.singleton(v) ||. acc) s Set.empty |>
                        Set.iter (fun (x,y) -> 
                            Printf.printf "********************* TODO ***********************\n";
                            Printf.printf "A --> "; print_set ~first:"{" ~sep:", " ~last:"}" x; 
                            Printf.printf "B --> "; print_set ~first:"{" ~sep:", " ~last:"}" y;
                            Printf.printf "**********************END*************************\n")  in
-    let print_pair (a,b) = Printf.printf "Pair -> "; (print_set ~first:"" ~sep:"," ~last:" --- " a); (print_set ~first:"" ~sep:"," ~last:"" b) in *)
+    let print_pair (a,b) = Printf.printf "Pair -> "; (print_set ~first:"" ~sep:"," ~last:" --- " a); (print_set ~first:"" ~sep:"," ~last:"" b) in
     (*let print_pair (a,b) = Printf.printf "Pair -> {%s, %s}\n" (string_of_regexp a) (string_of_regexp b) in 
       end debugging *)
     let rec loop todo =     
@@ -112,7 +153,7 @@ end = struct
       | None -> true
       | Some ((x,y),todo) -> 
         (* debug 2 *)
-        (*let () = print_pair (x,y);print_todo todo in*)
+        let () = print_pair (x,y);print_todo todo in
         (* end debug 2 *)
         if not (R.check t x y) then raise CE;
         if unify x y todo then loop todo
@@ -155,7 +196,7 @@ module ER(R: RULES): ERULES = struct
      were not applied *)
   let pnorm rules x y =
     let rec pnorm rules y =
-      if Set.subset x y then None else
+      if Set.subseteq x y then None else
         let rules,y' = pass rules y in
         if Set.equal y y' then Some (rules,y') else pnorm rules y'
     in pnorm rules y
@@ -175,7 +216,7 @@ module ER(R: RULES): ERULES = struct
      were not applied. *)
   let pnorm' f rules todo x y =
     let rec pnorm' rules todo y =
-      if Set.subset x y then true else
+      if Set.subseteq x y then true else
         let todo,y' = f todo y in
         let rules,y'' = pass rules y' in
         if Set.equal y y'' then false else
@@ -193,13 +234,13 @@ module TR = ER(struct
     let empty = L Set.empty
     let set_compare x y =
       if x = y then `Eq else
-      if Set.subset x y then `Lt
-      else if Set.subset y x then `Gt
+      if Set.subseteq x y then `Lt
+      else if Set.subseteq y x then `Gt
       else `N
     let rec xpass skipped t z = match t with
       | L x -> skipped, Set.union x z
       | N(x,tx,fx) ->
-        if  Set.subset x z then
+        if  Set.subseteq x z then
           let skipped,z = xpass skipped tx z in
           xpass skipped fx z
         else
@@ -214,7 +255,7 @@ module TR = ER(struct
       in
       let rec add = function
         | L y as t ->
-          if  Set.subset x y then L (Set.union y x')
+          if  Set.subseteq x y then L (Set.union y x')
           else N(x,L (Set.union y x'),t)
         | N(y,t,f) -> match set_compare x y with
           | `Eq -> N(y,add' t,f)
@@ -230,10 +271,10 @@ module R = TR
 (* HKC algorithm for language equivalence *)
 module Equivalence(Q: QUEUE) = Make(struct
     module Q = Q
-    let check t x y = let open NFA in Set.intersect t.accept x = Set.intersect t.accept y
+    let check t x y = let open NFA in Set.inter t.accept x = Set.inter t.accept y
     let step todo z = Q.fold (fun (x,y as xy) (todo,z) ->
-        if  Set.subset x z then todo, y ||. z else
-        if Set.subset y z then todo, x ||. z else
+        if  Set.subseteq x z then todo, Set.union y z else
+        if Set.subseteq y z then todo, Set.union x z else
           Q.push todo xy,z
       ) todo (Q.empty,z)
     let unify () =

@@ -3,8 +3,52 @@ open Automata
 open Graph
 open RegExp
 open Set.Infix
+open Sets
+(* type set = regexp_t Set.t *)
 
-type set = regexp_t Set.t
+(*begin test *)
+
+
+module Mset = struct     
+  type t = regexp_t Set.t
+  open Set
+  let empty = empty
+  let union = union
+  let inter = intersect
+  let singleton = singleton
+  let mem = mem
+  let equal = equal
+  let compare = compare
+  let fold = fold
+  let size x = fold (fun _ i -> i + 1) x 0
+  let rem = remove
+  let add = add
+  let is_empty = is_empty
+  let subseteq = (<=.)
+  (*TODO check this set_compare function *)
+  let set_compare x y =
+    if equal x y then `Eq else
+    if Set.subset x y then `Lt
+    else if Set.subset y x then `Gt
+    else `N
+  let map = map
+  let iter = iter
+  let hash = Hashtbl.hash
+  let diff = diff
+  let filter = filter
+  let forall = for_all
+  let exists = exists
+  module Map = Hashtbl.Make(struct 
+      type t = RegExp.regexp_t Set.t let equal = Set.equal let compare = compare let hash = hash 
+    end)
+
+end
+
+type set = Mset.t
+
+
+
+(* end test *)
 
 module type QUEUE = sig
   type 'a t
