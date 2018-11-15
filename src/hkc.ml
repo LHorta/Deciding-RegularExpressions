@@ -1,99 +1,161 @@
 open Batteries
-open Automata
-open Graph
-open RegExp
 open Set.Infix
-open Sets
-(* type set = regexp_t Set.t *)
+open RegExp
 
-(*begin test *)
+type set = RegExp.regexp_t Set.t
 
-
-module Mset = struct     
-  type t = regexp_t Set.t
-  open Set
-  let empty = empty
-  let union = union
-  let inter = intersect
-  let singleton = singleton
-  let mem = mem
-  let equal = equal
-  let compare = compare
-  let fold = fold
-  let size x = fold (fun _ i -> i + 1) x 0
-  let rem = remove
-  let add = add
-  let is_empty = is_empty
-  let subseteq = (<=.)
-  (*TODO check this set_compare function *)
-  let set_compare x y =
-    if equal x y then `Eq else
-    if Set.subset x y then `Lt
-    else if Set.subset y x then `Gt
-    else `N
-  let map = map
-  let iter = iter
-  let hash = Hashtbl.hash
-  let diff = diff
-  let filter = filter
-  let forall = for_all
-  let exists = exists
-  module Map = Hashtbl.Make(struct 
-      type t = RegExp.regexp_t Set.t let equal = Set.equal let compare = compare let hash = hash 
-    end)
-
+module type RULES = sig
+  (* representing a set of rewriting rules to perform efficient congruence tests.
+     this module provides only the "one-pass" rewriting process *)
+  type t
+  val empty: t
+  val add: set -> set -> t -> t	(* adding a rewriting rule to the candidate *)
+  val pass: t -> set -> t * set	(* a single parallel rewriting pass *)
 end
 
-type set = Mset.t
+module type ERULES = sig
+  (* more functions on rules, derived from the one-pass rewriting process *)
+  type t
+  val empty: t
+  val add: set -> set -> t -> t
+  val norm: t -> set -> set
+  val pnorm: t -> set -> set -> (t*set) option
+  val norm': ('a -> set -> 'a*set) -> t -> 'a -> set -> set
+  val pnorm': ('a -> set -> 'a*set) -> t -> 'a -> set -> set -> (t*set) option
+end
 
 
+module ER(R: RULES): ERULES = struct
+  include R
 
-(* end test *)
+  (* get the normal form of [x] *)
+  let rec norm rules x =
+    let rules,x' = pass rules x in
+    if Set.equal x x' then x else norm rules x'
 
-module type QUEUE = sig
-  type 'a t
-  val empty: 'a t
-  val push: 'a t -> 'a -> 'a t
-  val pop: 'a t -> ('a * 'a t) option
-  val filter: ('a -> bool) -> 'a t -> 'a t
-  val fold: ('a -> 'b -> 'b) -> 'a t -> 'b -> 'b
-end 
+  (* get the normal form of [y], unless [x] is subsumed by this normal
+     form. In the first case, also return the subset of rules that
+     were not applied *)
+  let pnorm rules x y =
+    let rec pnorm rules y =
+      if x <=. y then None else
+        let rules,y' = pass rules y in
+        if Set.equal y y' then Some (rules,y') else pnorm rules y'
+    in pnorm rules y
 
-let filter_rev f =
-  let rec xfilter_rev acc = function
-    | [] -> acc
-    | x::q when f x -> xfilter_rev (x::acc) q
-    | _::q -> xfilter_rev acc q
-  in xfilter_rev []
+  (* get the normal form of [x] w.r.t a relation and a todo list *)
+  let norm' f =
+    let rec norm' rules todo x =
+      let rules,x' = pass rules x in
+      let todo,x'' = f todo x' in
+      if Set.equal x x'' then x else norm' rules todo x''
+    in norm'
 
-
-module BFS = struct
-  (* TODO: check Okasaki's book... *)
-  type 'a t = 'a list * 'a list
-  let empty = [],[]
-  let push (h,k) x = h,x::k
-  let pop (h,k) = match h with
-    | x::h -> Some (x, (h,k))
-    | [] -> match List.rev k with
-      | [] -> None
-      | x::h -> Some (x, (h,[]))
-  let filter f =
-    let rec xfilter last = function
-      | [] -> last
-      | x::q when f x -> x::xfilter last q
-      | _::q -> xfilter last q
+  (* get the normal form of [y] w.r.t a relation, unless [x] is
+     subsumed by the normal form of [y] w.r.t a relation and a todo
+     list. In the first case, the normal form is only w.r.t the
+     relation, and we also return the subset of (relation) rules that
+     were not applied. *)
+  let pnorm' f rules todo x y =
+    let rec pnorm' rules todo y =
+      if  x <=. y then true else
+        let todo,y' = f todo y in
+        let rules,y'' = pass rules y' in
+        if Set.equal y y'' then false else
+          pnorm' rules todo y''
     in
-    fun (h,k) -> xfilter (filter_rev f k) h,[]
-  let fold f (h,k) a =  fold f h (fold f k a)
+    match pnorm rules x y with
+    | None -> None
+    | Some(rules,y') as r -> if pnorm' rules todo y' then None else r
 end
 
-let rec fold f l a = match l with [] -> a | x::q -> fold f q (f x a)
 
-module type CHECKER = sig
-  (* how to enqueue elements of the todo list *)
-  module Q: QUEUE
-  (* checking outputs of the given sets *)
-  val check: nfa -> set -> set -> bool
-  (* unifying function (i.e., the up-to technique) *)
-  val unify: unit -> set -> set -> (set * set) Q.t -> bool
-end
+
+module TR = ER(struct
+    (* candidates as binary trees, allowing to cut some branches during
+       rewriting *)
+    type t = L of set | N of (set*t*t)
+    open Set
+    let empty = L Set.empty
+    let set_compare x y =
+      if x = y then `Eq else
+      if x <=. y then `Lt
+      else if y <=. x then `Gt
+      else `N
+    let rec xpass skipped t z = match t with
+      | L x -> skipped, Set.union x z
+      | N(x,tx,fx) ->
+        if  x <=. z then
+          let skipped,z = xpass skipped tx z in
+          xpass skipped fx z
+        else
+          let skipped,z = xpass skipped fx z in
+          N(x,tx,skipped),z
+    let pass = xpass empty
+    let add x x' =
+      let rec add' = function
+        (* optimisable *)
+        | L y -> L (Set.union y x')
+        | N(y,t,f) -> N(y,t,add' f)
+      in
+      let rec add = function
+        | L y as t ->
+          if  x <=. y then L (Set.union y x')
+          else N(x,L (Set.union y x'),t)
+        | N(y,t,f) -> match set_compare x y with
+          | `Eq -> N(y,add' t,f)
+          | `Lt -> N(x,N(y,add' t,L x'),f)
+          | `Gt -> N(y,add t,f)
+          | `N  -> N(y,t,add f)
+      in add
+  end)
+
+let check_final s1 s2 = 
+  let r1 = Set.fold (fun x acc -> acc || if emptyWord x = Epsilon then true else false) s1 false in
+  let r2 = Set.fold (fun x acc -> acc || if emptyWord x = Epsilon then true else false) s2 false in
+  r1 = r2
+
+let step todo z = Set.fold (fun (x,y as xy) (todo,z) ->
+    if  Set.subset x z then todo, Set.union y z else
+    if Set.subset y z then todo, Set.union x z else
+      (Set.add  xy todo), z
+  ) todo (Set.empty,z)
+
+let unify () =
+  let r = ref TR.empty in
+  fun x y todo -> let r' = !r in
+    match TR.pnorm' step r' todo x y, TR.pnorm' step r' todo y x with
+    | None, None -> true
+    | Some(ry,y'), None ->
+      r := TR.add y (TR.norm ry (Set.union x y')) r'; false
+    | None, Some(rx,x') ->
+      r := TR.add x (TR.norm rx (Set.union x' y)) r'; false
+    | Some(ry,y'), Some(_,x') ->
+      let z = TR.norm ry (Set.union x' y') in
+      r := TR.add x z (TR.add y z r'); false
+
+(* let canonical alpha rUtd = 
+   TR.pnorm' 
+   true todo *)
+(*  Set.fold (fun x acc -> S) rUtd Set.empty *)
+
+(* let in_relation (x,y) rUtd = canonical x r = canonical y r *)
+
+let in_relation (x,y) rUtd = unify () x y rUtd 
+
+let get_all_transitions a b sigma =
+  let succ_a = Set.fold (fun c acc -> (c,(Set.fold (fun x acc' -> acc' ||. (derivate x (Set.singleton c))) a Set.empty)) :: acc) sigma [] in
+  let succ_b = Set.fold (fun c acc -> (c,(Set.fold (fun x acc' -> acc' ||. (derivate x (Set.singleton c))) b Set.empty)) :: acc) sigma [] in
+  let () = assert ((List.length succ_a) = (List.length succ_b)) in
+  List.map2 (fun (c1,x) (c2,y) -> let () = assert (c1 = c2) in (x,y)) succ_a succ_b |> Set.of_list
+
+let  hck s1 s2 sigma =
+  let rec hck_aux r todo = 
+    if Set.is_empty todo then true
+    else let (x,y),td = RegExp.pop todo in
+      if in_relation (x,y) (r ||. td) then hck_aux r td else
+      if check_final x y then
+        let td' = get_all_transitions x y sigma in
+        hck_aux (Set.add (x,y) r) (td ||. td')
+      else false 
+  in hck_aux Set.empty (Set.singleton(s1,s2))
