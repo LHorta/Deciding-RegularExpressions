@@ -20,28 +20,30 @@ let process name =
     let rl = Parser.main Lexer.token lexbuf in    
     let g1 = List.fold_left (fun acc x -> buildAutomata x acc) G.empty rl in
     (* FIXME test begin
-    let tmpG1,tmp2 = pop g1 in
-    let tmpG2,tmp3 = pop tmp2 in
-    let g = automata_union (tmpG1,hd rl) (tmpG2, hd(tl rl)) in
-    let b = true in let i = 7 in
-    FIXME test end  *)
+       let tmpG1,tmp2 = pop g1 in
+       let tmpG2,tmp3 = pop tmp2 in
+       let g = automata_union (tmpG1,hd rl) (tmpG2, hd(tl rl)) in
+       let b = true in let i = 7 in
+       FIXME test end  *)
     let exp1,exp2 = (hd rl),(hd (tl rl)) in
-    let sameSigma = Set.equal (getSymbols exp1) (getSymbols exp2)  in  
+    let s1,s2 = (getSymbols exp1), (getSymbols exp2) in
+    let sameSigma = Set.equal s1 s2  in  
+
     (* begin toy 
-    let _ = 
-      Printf.printf "********************************\nexp1 --> ";
-      print_set ~first:"{" ~sep:", " ~last:"}" (Set.singleton(exp1) ||. piFun exp1);
-      Printf.printf "++++++++++++++++++++++++++++++++\nexp2 --> ";
-      print_set ~first:"{" ~sep:", " ~last:"}" (Set.singleton(exp2) ||. piFun exp2);
-      Printf.printf "********************************\n" in
-    end toy *) 
+       let _ = 
+       Printf.printf "********************************\nexp1 --> ";
+       print_set ~first:"{" ~sep:", " ~last:"}" (Set.singleton(exp1) ||. piFun exp1);
+       Printf.printf "++++++++++++++++++++++++++++++++\nexp2 --> ";
+       print_set ~first:"{" ~sep:", " ~last:"}" (Set.singleton(exp2) ||. piFun exp2);
+       Printf.printf "********************************\n" in
+       end toy *) 
     let g,nf = nfa_normalised_union_set (g1,hd rl, hd (tl rl)) in
-    let b,i = if sameSigma then hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf) else false,0 in
+    let b,i = if sameSigma then Sets.hck (Set.singleton (exp1)) (Set.singleton(exp2)) (s1),0 (*hck (Set.singleton(hd rl),Set.singleton(hd (tl rl) ),nf)*) else false,0 in
     let file = Legacy.open_out_bin "mygraph.dot" in let () = Dot.output_graph file g in
     Legacy.close_out file; print_endline(string_of_bool b ^ ": processed in " ^ string_of_int i ^ " iterations");
     List.iter (fun x -> Printf.printf "%s\n"(string_of_regexp x) ) rl; Printf.printf "*****************************************\n"
   with
-  
+
   | LError msg -> print_lex_error msg
   | SError pos ->  print_syntax_error pos
 

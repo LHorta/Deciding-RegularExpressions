@@ -189,10 +189,33 @@ let check_final s1 s2 =
   let r2 = Set.fold (fun x acc -> acc || if emptyWord x = Epsilon then true else false) s2 false in
   r1 = r2
 
-let canonical alpha rUtd = true (*todo*)
+let step todo z = Set.fold (fun (x,y as xy) (todo,z) ->
+    if  Set.subset x z then todo, Set.union y z else
+    if Set.subset y z then todo, Set.union x z else
+      (Set.add  xy todo), z
+  ) todo (Set.empty,z)
+
+let unify () =
+  let r = ref TR.empty in
+  fun x y todo -> let r' = !r in
+    match TR.pnorm' step r' todo x y, TR.pnorm' step r' todo y x with
+    | None, None -> true
+    | Some(ry,y'), None ->
+      r := TR.add y (TR.norm ry (Set.union x y')) r'; false
+    | None, Some(rx,x') ->
+      r := TR.add x (TR.norm rx (Set.union x' y)) r'; false
+    | Some(ry,y'), Some(_,x') ->
+      let z = TR.norm ry (Set.union x' y') in
+      r := TR.add x z (TR.add y z r'); false
+
+(* let canonical alpha rUtd = 
+   TR.pnorm' 
+   true todo *)
 (*  Set.fold (fun x acc -> S) rUtd Set.empty *)
 
-let in_relation (x,y) r = canonical x r = canonical y r
+(* let in_relation (x,y) rUtd = canonical x r = canonical y r *)
+
+let in_relation (x,y) rUtd = unify () x y rUtd 
 
 let get_all_transitions a b sigma =
   let succ_a = Set.fold (fun c acc -> (c,(Set.fold (fun x acc' -> acc' ||. (derivate x (Set.singleton c))) a Set.empty)) :: acc) sigma [] in
@@ -204,7 +227,7 @@ let  hck s1 s2 sigma =
   let rec hck_aux r todo = 
     if Set.is_empty todo then true
     else let (x,y),td = RegExp.pop todo in
-      if in_relation (x,y) r then hck_aux r td else
+      if in_relation (x,y) (r ||. td) then hck_aux r td else
       if check_final x y then
         let td' = get_all_transitions x y sigma in
         hck_aux (Set.add (x,y) r) (td ||. td')
