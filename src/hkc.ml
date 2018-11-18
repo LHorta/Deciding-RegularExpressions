@@ -24,6 +24,25 @@ module type ERULES = sig
   val pnorm': ('a -> set -> 'a*set) -> t -> 'a -> set -> set -> (t*set) option
 end
 
+let to_string r =
+  match r with 
+  | Concat(Concat(Concat(Concat(Star(Char _), Char _), Star(Char _)), Char _), Star(Choice(Char _, Char _))) -> "alpha"
+  | Concat(Concat(Concat(Concat(Star(Choice(Char _, Char _)), Char _), Star(Choice(Char _, Char _))), Char _), Star(Choice(Char _, Char _))) -> "beta"
+  | Star(Choice(Char _, Char _)) -> "mu"
+  | Concat(Concat(Star(Char _), Char _),Star(Choice(Char _, Char _))) -> "gamma"
+  | Concat(Concat(Star(Choice(Char _, Char _)), Char _), Star(Choice(Char _, Char _))) -> "lambda"
+  | _ -> ""
+
+(* Prints a given set *)
+let print_set_tmp ~first ~last ~sep set =
+  Printf.printf "%s " first;
+  let rec print_set_aux s =
+    if s <> Set.empty then
+      let h,t = pop s in
+      Printf.printf "%s%s" (to_string h) (if t = Set.empty then "" else sep ^ " ");
+      print_set_aux t
+  in print_set_aux set;
+  Printf.printf " %s" last
 
 module ER(R: RULES): ERULES = struct
   include R
@@ -38,9 +57,9 @@ module ER(R: RULES): ERULES = struct
      were not applied *)
   let pnorm rules x y =
     let rec pnorm rules y =
-      if x <=. y then None else
+      if x <=. y then let () = print_endline("Saí - x <= y") in None else
         let rules,y' = pass rules y in
-        if Set.equal y y' then Some (rules,y') else pnorm rules y'
+        if Set.equal y y' then let () = (print_set_tmp ~first:"{" ~sep:", " ~last:"}\n" y') in Some (rules,y') else pnorm rules y'
     in pnorm rules y
 
   (* get the normal form of [x] w.r.t a relation and a todo list *)
@@ -77,6 +96,10 @@ module TR = ER(struct
     type t = L of set | N of (set*t*t)
     open Set
     let empty = L Set.empty
+    let rec print_tree t = 
+      match t with 
+        L x -> print_set ~first:"L(" ~sep:", " ~last:")\n" x
+      | N(x,l,r) -> Printf.printf "N( "; print_tree l; print_set ~first:"{" ~sep:", " ~last:"}" x; print_tree r
     let set_compare x y =
       if x = y then `Eq else
       if x <=. y then `Lt
@@ -133,13 +156,6 @@ let unify () =
     | Some(ry,y'), Some(_,x') ->
       let z = TR.norm ry (Set.union x' y') in
       r := TR.add x z (TR.add y z r'); false
-
-(* let canonical alpha rUtd = 
-   TR.pnorm' 
-   true todo *)
-(*  Set.fold (fun x acc -> S) rUtd Set.empty *)
-
-(* let in_relation (x,y) rUtd = canonical x r = canonical y r *)
 
 let in_relation (x,y) rUtd = unify () x y rUtd 
 
